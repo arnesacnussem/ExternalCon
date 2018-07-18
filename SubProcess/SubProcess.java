@@ -46,8 +46,10 @@ public class SubProcess extends Thread {
     private void serverStart() throws IOException {
         if (getServerStatus() != READY) {
             System.out.println("Server not ready ,checking status");
-            if (getServerStatus() == STOPPED) setServerStatus(READY);
-            else {
+            if (getServerStatus() == STOPPED) {
+                in.close();
+                setServerStatus(READY);
+            } else {
                 setServerStatus(FORCE_STOP);
                 serverForceStop();
             }
@@ -61,18 +63,19 @@ public class SubProcess extends Thread {
         setServerStatus(STARTING);
 
         MineStat mineStat = new MineStat("127.0.0.1", 25565, 100);
-        while (true) {
-            if (mineStat.isServerUp()) break;
-            else {
+        while (process.isAlive()) {
+            if (mineStat.isServerUp()) {
+                setServerStatus(RUNNING);
+                break;
+            } else {
                 try {
                     sleep(500);
-                    mineStat.refresh();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                mineStat.refresh();
             }
         }
-        setServerStatus(RUNNING);
     }
 
     protected void serverForceStop() {
@@ -84,7 +87,7 @@ public class SubProcess extends Thread {
 
     protected void serverRestart() {
         log.push(StaticalStringGenerator.getTimePerfix() + "[SubProcess]: Parent process issued -> STOP");
-        in.write("STOP");
+        input("stop");
         try {
             setServerStatus(STOPPING);
             while (process.isAlive()) {
@@ -92,7 +95,6 @@ public class SubProcess extends Thread {
             }
             setServerStatus(STOPPED);
             process.destroy();
-            setServerStatus(READY);
             serverStart();
         } catch (Exception e) {
             e.printStackTrace();
@@ -109,9 +111,23 @@ public class SubProcess extends Thread {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        if (getServerStatus() == STOPPING) setServerStatus(STOPPED);
-        if (getServerStatus() == RUNNING) {
+        if (getServerStatus() == STOPPING) {
+            setServerStatus(STOPPED);
+            return;
+        } else {
             setServerStatus(ERROR);
+            if (failRetryTimes == 0) {
+                log.push(StaticalStringGenerator.getTimePerfix() + "[SubProcess]: Server error,no fail retry set,force stop the server");
+                serverForceStop();
+            }
+            while (failRetryTimes > 0) {
+                failRetryTimes--;
+                log.push(StaticalStringGenerator.getTimePerfix() + "[SubProcess]: Server error,trying to restart,retry left " + failRetryTimes);
+                serverRestart();
+                if (getServerStatus() == RUNNING) statusListener();
+            }
+            log.push(StaticalStringGenerator.getTimePerfix() + "[SubProcess]: Server error,retry too many times,force stop the server");
+            serverForceStop();
         }
     }
 
@@ -132,9 +148,10 @@ public class SubProcess extends Thread {
     }
 
     public void input(String str) {
+        if (str.equals("")) return;
         switch (str.trim().toUpperCase()) {
             case "STOP":
-                setServerStatus(STOPPED);
+                setServerStatus(STOPPING);
                 break;
             case "RESTART":
                 setServerStatus(RESTARTING);

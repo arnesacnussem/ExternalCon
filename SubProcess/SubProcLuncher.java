@@ -17,7 +17,10 @@ public class SubProcLuncher {
     public SubProcLuncher(String cfgFileName) {
         cfgFile = new File(cfgFileName);
         if (!cfgFile.exists()) {
+            System.out.println("No config file found.generate new!");
             cfgFileGen();
+            System.out.println("Editor the config file and restart!");
+            System.exit(0);
         }
         loadConfigurations();
         cmd = cmdBuilder();
@@ -58,7 +61,7 @@ public class SubProcLuncher {
     private void cfgFileGen() {
         Configurations configurations = new Configurations();
         try {
-            if (cfgFile.createNewFile()) System.out.println("Config file created successful");
+            if (cfgFile.createNewFile()) System.out.println("Config file generated successful");
             FileBasedConfigurationBuilder<PropertiesConfiguration> builder = configurations.propertiesBuilder(cfgFile);
             Configuration cfg = builder.getConfiguration();
             cfg.addProperty("cmd.jar", "server.jar");
