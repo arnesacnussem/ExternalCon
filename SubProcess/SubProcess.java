@@ -19,13 +19,15 @@ public class SubProcess extends Thread {
     private In in;
     private Out out;
     private Status serverStatus;
-    private boolean USE_STDERR;
+    private boolean USE_STDERR,USE_STDOUT,USE_STDIN;
 
     public SubProcess(String name, String[] cmd, int failRetryTimes, boolean USE_STDERR) {
         this.name = name;
         this.cmd = cmd;
         log = new Log();
         this.USE_STDERR = USE_STDERR;
+        USE_STDIN=true;
+        USE_STDOUT=true;
         this.failRetryTimes = failRetryTimes;
         setServerStatus(READY);
     }
@@ -58,8 +60,8 @@ public class SubProcess extends Thread {
         process = Runtime.getRuntime().exec(cmd);
         in = new In(this);
         out = new Out(this, true, USE_STDERR);
-        out.start();
-        in.start();
+        if(USE_STDOUT)out.start();
+        if(USE_STDIN)in.start();
         setServerStatus(STARTING);
 
         MineStat mineStat = new MineStat("127.0.0.1", 25565, 100);
@@ -166,5 +168,21 @@ public class SubProcess extends Thread {
 
     public Process getProcess() {
         return process;
+    }
+
+    public boolean isUSE_STDOUT() {
+        return USE_STDOUT;
+    }
+
+    public void setUSE_STDOUT(boolean USE_STDOUT) {
+        this.USE_STDOUT = USE_STDOUT;
+    }
+
+    public boolean isUSE_STDIN() {
+        return USE_STDIN;
+    }
+
+    public void setUSE_STDIN(boolean USE_STDIN) {
+        this.USE_STDIN = USE_STDIN;
     }
 }
